@@ -1530,6 +1530,8 @@ h1,h2,h3,h4,p,label,small,.muted,.panel-auto-info,.report-description,.permissio
 #team-task-pane-dashboard .team-task-kpi:last-child{border-top-color:#d65353}
 #team-task-pane-dashboard .team-task-dashboard-grid .card{border-radius:10px!important}
 @media(max-width:650px){#team-task-pane-dashboard .team-task-kpis{grid-template-columns:repeat(2,minmax(0,1fr))!important}.team-dashboard-period .team-task-daily-filters{width:100%}}
+
+#team-task-pane-dashboard .team-category-shift-card{border-radius:10px!important}#teamTaskCategoryShiftChart{display:block;width:100%!important;height:400px!important}
 </style></head><body class="logged-out">
 <div id="login" class="login"><div class="loginbox"><h1>Solicitação de Embalagens</h1><p class="muted">Use o mesmo usuário e senha do sistema atual.</p><div class="field"><label>Usuário</label><input id="loginUser" value="" autocomplete="username" placeholder="Ex.: admin, pce, carimbo"></div><div class="field"><label>Senha</label><input id="loginPass" type="password"></div><button class="btn primary" style="width:100%" onclick="login()">ENTRAR</button><p id="loginMsg" class="red"></p><div class="login-contact">Caso de dúvidas, entrar em contato com <b>Alef Felipe</b> no ramal <b>6652</b> ou WhatsApp: <b>45 9 9127-5143</b>.</div></div></div>
 <header class="top"><div class="brand"><button id="menuButton" class="hamb" type="button" onclick="toggleNav()" aria-label="Ocultar menu" aria-expanded="true">☰</button><span class="brand-title">📦 Solicitação de Embalagens <small class="version-badge">v23.8</small></span></div><div class="top-right"><div id="weatherBox" class="weather-box" title="Temperatura da sua localização"><div id="weatherIcon" class="weather-icon">🌡️</div><div><div class="weather-main"><span id="weatherTemp" class="weather-temp">--°C</span><button class="weather-refresh" onclick="loadWeather(true)" title="Atualizar temperatura" aria-label="Atualizar temperatura">↻</button></div><span id="weatherCity" class="weather-city">Localizando sua cidade...</span></div></div><div class="clock"><div id="hora" class="time">--:--:--</div><div id="data" class="date">--</div></div></div></header>
@@ -1720,6 +1722,7 @@ h1,h2,h3,h4,p,label,small,.muted,.panel-auto-info,.report-description,.permissio
    <div class="team-task-daily-legend" id="teamTaskDailyLegend"></div><canvas id="teamTaskDailyChart" class="team-task-daily-chart"></canvas>
   </div>
   <div class="team-task-dashboard-grid"><div class="card chart-card"><h3>Atividades por categoria</h3><canvas id="teamTaskCategoryChart"></canvas></div><div class="card chart-card"><h3>Comparativo por turno</h3><canvas id="teamTaskShiftChart"></canvas></div></div>
+  <div class="card team-category-shift-card" style="margin-top:16px"><h3>Atividades por categoria e turno</h3><div class="team-task-daily-legend"><span><i style="background:#2878b5"></i>1º turno</span><span><i style="background:#3b9b69"></i>2º turno</span></div><canvas id="teamTaskCategoryShiftChart" role="img" aria-label="Atividades por categoria comparadas entre primeiro e segundo turno"></canvas></div>
   <div class="card" style="margin-top:14px"><h3>Resumo por turno</h3><div id="teamTaskShiftSummary"></div></div>
  </div>
 </section>
@@ -3708,12 +3711,32 @@ function teamTaskPeriodTotals(records,from,to,overdue=[]){
  if(from>to)[from,to]=[to,from];
  const keys=['pointedItems','lotChanges','cageReplenishments','transferSeparated','urgentBarn'];
  const totals={reports:0,saltPallets:0,overdue:overdue.filter(r=>r.date>=from&&r.date<=to).length};keys.forEach(k=>totals[k]=0);
- const byShift={'1':{reports:0,activities:0,saltPallets:0},'2':{reports:0,activities:0,saltPallets:0}};
+ const byShift={'1':{reports:0,activities:0,saltPallets:0},'2':{reports:0,activities:0,saltPallets:0}};Object.values(byShift).forEach(shift=>keys.forEach(k=>shift[k]=0));
  records.filter(r=>r.date>=from&&r.date<=to).forEach(r=>{totals.reports++;const shift=byShift[String(r.shift)];if(shift)shift.reports++;
- keys.forEach(k=>{const n=Array.isArray(r[k])?r[k].length:0;totals[k]+=n;if(shift)shift.activities+=n;});
+ keys.forEach(k=>{const n=Array.isArray(r[k])?r[k].length:0;totals[k]+=n;if(shift){shift.activities+=n;shift[k]+=n;}});
  const salt=(r.saltDone===true||r.saltDone==='sim')?Math.max(0,Number(r.saltPallets)||0):0;totals.saltPallets+=salt;if(shift)shift.saltPallets+=salt;
  });return {totals,byShift};
 }
+function drawTeamCategoryShiftChart(byShift){
+ const canvas=$('teamTaskCategoryShiftChart');if(!canvas)return;
+ const width=canvas.getBoundingClientRect().width;if(width<1)return;
+ const height=400,dpr=window.devicePixelRatio||1;canvas.width=Math.round(width*dpr);canvas.height=height*dpr;
+ const ctx=canvas.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,width,height);
+ const categories=[['pointedItems','Itens apontados'],['lotChanges','Trocas de lote'],['cageReplenishments','Reposições gaiola'],['transferSeparated','Transferências'],['urgentBarn','Urgentes barracão']];
+ const shifts=['1','2'],colors=['#2878b5','#3b9b69'];
+ const max=Math.max(1,...categories.flatMap(([key])=>shifts.map(shift=>Number(byShift[shift]?.[key])||0)));
+ const left=width<480?12:155,right=55,plot=Math.max(20,width-left-right);
+ ctx.font='12px Arial';ctx.textBaseline='middle';
+ categories.forEach(([key,label],i)=>{
+ const top=14+i*76;
+ ctx.fillStyle='#344f65';ctx.textAlign=width<480?'left':'right';ctx.fillText(label,width<480?left:left-12, width<480?top+6:top+32);
+ shifts.forEach((shift,j)=>{const value=Number(byShift[shift]?.[key])||0,y=top+18+j*23;
+ ctx.fillStyle='#edf3f7';ctx.fillRect(left,y,plot,17);ctx.fillStyle=colors[j];ctx.fillRect(left,y,plot*value/max,17);
+ ctx.textAlign='left';ctx.font='bold 12px Arial';ctx.fillStyle=colors[j];ctx.fillText(value.toLocaleString('pt-BR'),left+plot+8,y+8.5);ctx.font='12px Arial';});
+ });
+ canvas.setAttribute('aria-label',categories.map(([key,label])=>label+': 1º turno '+(byShift['1']?.[key]||0)+', 2º turno '+(byShift['2']?.[key]||0)).join('; '));
+}
+
 function renderTeamTaskDashboard(){
  let k=$('teamTaskKpis');if(!k)return;
  if(!$('teamTaskDashFrom')?.value||!$('teamTaskDashTo')?.value)resetTeamTaskDailyRange(false);
@@ -3723,6 +3746,7 @@ function renderTeamTaskDashboard(){
  drawTeamTaskBars('teamTaskCategoryChart',['Itens apontados','Trocas de lote','Reposições gaiola','Transferências','Urgentes barracão'],vals,['#2878b5','#e29b27','#3b9b69','#8758b5','#d65353']);
  let s=summaryData.byShift,s1=s['1']||{},s2=s['2']||{};
  drawTeamTaskBars('teamTaskShiftChart',['1º turno','2º turno'],[s1.activities||0,s2.activities||0],['#2878b5','#3b9b69']);
+ drawTeamCategoryShiftChart(summaryData.byShift);
  let summary=$('teamTaskShiftSummary');if(summary)summary.innerHTML=`<div class="team-shift-summary"><div><b>1º Turno</b><span>${s1.reports||0} registro(s)</span><strong>${s1.activities||0} atividades</strong><small>${s1.saltPallets||0} paletes de sal</small></div><div><b>2º Turno</b><span>${s2.reports||0} registro(s)</span><strong>${s2.activities||0} atividades</strong><small>${s2.saltPallets||0} paletes de sal</small></div></div>`;
  if(!$('teamTaskDashFrom')?.value||!$('teamTaskDashTo')?.value)resetTeamTaskDailyRange(false);
  renderTeamTaskDailyChart();
