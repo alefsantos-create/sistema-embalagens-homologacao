@@ -1522,6 +1522,14 @@ h1,h2,h3,h4,p,label,small,.muted,.panel-auto-info,.report-description,.permissio
 .team-task-daily-chart{max-width:100%}.team-shift-summary{gap:16px}
 @media(max-width:1000px){.team-task-dashboard-grid{grid-template-columns:1fr}.team-task-daily-filters{width:100%}}
 @media(max-width:600px){.team-task-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.team-task-daily-filters label{flex:1 1 120px}.team-task-daily-filters input{width:100%}.team-task-daily-filters .btn{flex:1 1 100%}.team-shift-summary{grid-template-columns:1fr}#team-task-pane-dashboard .card{padding:14px!important}}
+
+#team-task-pane-dashboard .team-dashboard-period{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;margin-bottom:16px;background:#f5faff!important;border-left:4px solid #2878b5!important}
+.team-dashboard-period h3{margin:0}.team-dashboard-period .team-task-daily-filters{width:auto}
+#team-task-pane-dashboard .team-task-kpis{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+#team-task-pane-dashboard .team-task-kpi{border-radius:10px!important;padding:16px!important;background:#fff!important}
+#team-task-pane-dashboard .team-task-kpi:last-child{border-top-color:#d65353}
+#team-task-pane-dashboard .team-task-dashboard-grid .card{border-radius:10px!important}
+@media(max-width:650px){#team-task-pane-dashboard .team-task-kpis{grid-template-columns:repeat(2,minmax(0,1fr))!important}.team-dashboard-period .team-task-daily-filters{width:100%}}
 </style></head><body class="logged-out">
 <div id="login" class="login"><div class="loginbox"><h1>Solicitação de Embalagens</h1><p class="muted">Use o mesmo usuário e senha do sistema atual.</p><div class="field"><label>Usuário</label><input id="loginUser" value="" autocomplete="username" placeholder="Ex.: admin, pce, carimbo"></div><div class="field"><label>Senha</label><input id="loginPass" type="password"></div><button class="btn primary" style="width:100%" onclick="login()">ENTRAR</button><p id="loginMsg" class="red"></p><div class="login-contact">Caso de dúvidas, entrar em contato com <b>Alef Felipe</b> no ramal <b>6652</b> ou WhatsApp: <b>45 9 9127-5143</b>.</div></div></div>
 <header class="top"><div class="brand"><button id="menuButton" class="hamb" type="button" onclick="toggleNav()" aria-label="Ocultar menu" aria-expanded="true">☰</button><span class="brand-title">📦 Solicitação de Embalagens <small class="version-badge">v23.8</small></span></div><div class="top-right"><div id="weatherBox" class="weather-box" title="Temperatura da sua localização"><div id="weatherIcon" class="weather-icon">🌡️</div><div><div class="weather-main"><span id="weatherTemp" class="weather-temp">--°C</span><button class="weather-refresh" onclick="loadWeather(true)" title="Atualizar temperatura" aria-label="Atualizar temperatura">↻</button></div><span id="weatherCity" class="weather-city">Localizando sua cidade...</span></div></div><div class="clock"><div id="hora" class="time">--:--:--</div><div id="data" class="date">--</div></div></div></header>
@@ -1704,10 +1712,10 @@ h1,h2,h3,h4,p,label,small,.muted,.panel-auto-info,.report-description,.permissio
  </div>
 
  <div id="team-task-pane-dashboard" class="team-task-pane">
-  <div id="teamTaskKpis" class="team-task-kpis"></div>
+  <div class="card team-dashboard-period"><h3>Período do comparativo</h3><div class="team-task-daily-filters"><label>De <input id="teamTaskDashFrom" type="date" onchange="renderTeamTaskDashboard()"></label><label>Até <input id="teamTaskDashTo" type="date" onchange="renderTeamTaskDashboard()"></label><button class="btn" type="button" onclick="resetTeamTaskDailyRange()">ÚLTIMOS 14 DIAS</button></div></div><div id="teamTaskKpis" class="team-task-kpis"></div>
   <div class="card team-task-daily-card" style="margin-bottom:14px">
-   <div class="team-task-daily-head"><div><h3 style="margin:0">📈 Atividades por dia</h3><p class="muted" style="margin:4px 0 0">Acompanhe a evolução diária por tipo de atividade.</p></div>
-    <div class="team-task-daily-filters"><label>De <input id="teamTaskDashFrom" type="date" onchange="renderTeamTaskDailyChart()"></label><label>Até <input id="teamTaskDashTo" type="date" onchange="renderTeamTaskDailyChart()"></label><button class="btn" type="button" onclick="resetTeamTaskDailyRange()">ÚLTIMOS 14 DIAS</button></div>
+   <div class="team-task-daily-head"><div><h3 style="margin:0">📈 Atividades por dia</h3></div>
+    
    </div>
    <div class="team-task-daily-legend" id="teamTaskDailyLegend"></div><canvas id="teamTaskDailyChart" class="team-task-daily-chart"></canvas>
   </div>
@@ -3696,12 +3704,24 @@ function drawTeamTaskBars(id,labels,values,colors){
 let teamChartResizeTimer;
 window.addEventListener('resize',()=>{clearTimeout(teamChartResizeTimer);teamChartResizeTimer=setTimeout(()=>{if($('apontamentos')?.classList.contains('active')&&$('team-task-pane-dashboard')?.classList.contains('active'))renderTeamTaskDashboard();},160)});
 
+function teamTaskPeriodTotals(records,from,to,overdue=[]){
+ if(from>to)[from,to]=[to,from];
+ const keys=['pointedItems','lotChanges','cageReplenishments','transferSeparated','urgentBarn'];
+ const totals={reports:0,saltPallets:0,overdue:overdue.filter(r=>r.date>=from&&r.date<=to).length};keys.forEach(k=>totals[k]=0);
+ const byShift={'1':{reports:0,activities:0,saltPallets:0},'2':{reports:0,activities:0,saltPallets:0}};
+ records.filter(r=>r.date>=from&&r.date<=to).forEach(r=>{totals.reports++;const shift=byShift[String(r.shift)];if(shift)shift.reports++;
+ keys.forEach(k=>{const n=Array.isArray(r[k])?r[k].length:0;totals[k]+=n;if(shift)shift.activities+=n;});
+ const salt=(r.saltDone===true||r.saltDone==='sim')?Math.max(0,Number(r.saltPallets)||0):0;totals.saltPallets+=salt;if(shift)shift.saltPallets+=salt;
+ });return {totals,byShift};
+}
 function renderTeamTaskDashboard(){
- let k=$('teamTaskKpis');if(!k||!teamTaskDashboard)return;let t=teamTaskDashboard.totals||{};
+ let k=$('teamTaskKpis');if(!k)return;
+ if(!$('teamTaskDashFrom')?.value||!$('teamTaskDashTo')?.value)resetTeamTaskDailyRange(false);
+ const summaryData=teamTaskPeriodTotals(teamTaskRecords,$('teamTaskDashFrom').value,$('teamTaskDashTo').value,teamTaskOverdue);let t=summaryData.totals;
  k.innerHTML=[['Registros',t.reports||0],['Itens apontados',t.pointedItems||0],['Trocas de lote',t.lotChanges||0],['Reposições gaiola',t.cageReplenishments||0],['Transferências',t.transferSeparated||0],['Urgentes barracão',t.urgentBarn||0],['Paletes de sal',t.saltPallets||0],['Turnos atrasados',t.overdue||0]].map(x=>`<div class="team-task-kpi"><small>${x[0]}</small><b>${x[1]}</b></div>`).join('');
  let vals=[t.pointedItems||0,t.lotChanges||0,t.cageReplenishments||0,t.transferSeparated||0,t.urgentBarn||0];
  drawTeamTaskBars('teamTaskCategoryChart',['Itens apontados','Trocas de lote','Reposições gaiola','Transferências','Urgentes barracão'],vals,['#2878b5','#e29b27','#3b9b69','#8758b5','#d65353']);
- let s=teamTaskDashboard.byShift||{},s1=s['1']||{},s2=s['2']||{};
+ let s=summaryData.byShift,s1=s['1']||{},s2=s['2']||{};
  drawTeamTaskBars('teamTaskShiftChart',['1º turno','2º turno'],[s1.activities||0,s2.activities||0],['#2878b5','#3b9b69']);
  let summary=$('teamTaskShiftSummary');if(summary)summary.innerHTML=`<div class="team-shift-summary"><div><b>1º Turno</b><span>${s1.reports||0} registro(s)</span><strong>${s1.activities||0} atividades</strong><small>${s1.saltPallets||0} paletes de sal</small></div><div><b>2º Turno</b><span>${s2.reports||0} registro(s)</span><strong>${s2.activities||0} atividades</strong><small>${s2.saltPallets||0} paletes de sal</small></div></div>`;
  if(!$('teamTaskDashFrom')?.value||!$('teamTaskDashTo')?.value)resetTeamTaskDailyRange(false);
@@ -3711,7 +3731,7 @@ function resetTeamTaskDailyRange(redraw=true){
  let to=new Date(),from=new Date();from.setDate(from.getDate()-13);
  const key=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
  if($('teamTaskDashFrom'))$('teamTaskDashFrom').value=key(from);if($('teamTaskDashTo'))$('teamTaskDashTo').value=key(to);
- if(redraw)renderTeamTaskDailyChart();
+ if(redraw)renderTeamTaskDashboard();
 }
 function renderTeamTaskDailyChart(){
  const canvas=$('teamTaskDailyChart');if(!canvas)return;
