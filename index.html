@@ -1503,6 +1503,25 @@ h1,h2,h3,h4,p,label,small,.muted,.panel-auto-info,.report-description,.permissio
 
 
 .report-top-grid{grid-template-columns:1fr}
+
+/* Dashboard de rotina: grade responsiva e gráficos legíveis. */
+#team-task-pane-dashboard{min-width:0}
+#team-task-pane-dashboard .card{min-width:0;padding:20px!important;overflow:hidden}
+.team-task-kpis{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.team-task-kpi{min-width:0;padding:16px;border-radius:10px;border-top:3px solid #2878b5}
+.team-task-kpi small{font-size:12px;line-height:1.4}.team-task-kpi b{font-size:28px;font-variant-numeric:tabular-nums}
+.team-task-daily-head{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;justify-content:space-between}
+.team-task-daily-head>div:first-child{flex:1 1 220px;min-width:0}
+.team-task-daily-filters{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;max-width:100%;min-width:0}
+.team-task-daily-filters label{display:flex;flex-direction:column;gap:6px;font-size:12px;min-width:0}
+.team-task-daily-filters input{box-sizing:border-box;width:150px;max-width:100%;height:40px;padding:8px;font-size:13px}
+.team-task-daily-filters .btn{min-height:40px!important;padding:8px 12px!important;font-size:12px!important;margin:0!important;white-space:normal}
+.team-task-daily-legend{gap:10px 18px;margin:20px 0 14px;font-size:12px}
+.team-task-dashboard-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.team-task-dashboard-grid canvas{width:100%!important;height:280px!important;display:block}
+.team-task-daily-chart{max-width:100%}.team-shift-summary{gap:16px}
+@media(max-width:1000px){.team-task-dashboard-grid{grid-template-columns:1fr}.team-task-daily-filters{width:100%}}
+@media(max-width:600px){.team-task-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.team-task-daily-filters label{flex:1 1 120px}.team-task-daily-filters input{width:100%}.team-task-daily-filters .btn{flex:1 1 100%}.team-shift-summary{grid-template-columns:1fr}#team-task-pane-dashboard .card{padding:14px!important}}
 </style></head><body class="logged-out">
 <div id="login" class="login"><div class="loginbox"><h1>Solicitação de Embalagens</h1><p class="muted">Use o mesmo usuário e senha do sistema atual.</p><div class="field"><label>Usuário</label><input id="loginUser" value="" autocomplete="username" placeholder="Ex.: admin, pce, carimbo"></div><div class="field"><label>Senha</label><input id="loginPass" type="password"></div><button class="btn primary" style="width:100%" onclick="login()">ENTRAR</button><p id="loginMsg" class="red"></p><div class="login-contact">Caso de dúvidas, entrar em contato com <b>Alef Felipe</b> no ramal <b>6652</b> ou WhatsApp: <b>45 9 9127-5143</b>.</div></div></div>
 <header class="top"><div class="brand"><button id="menuButton" class="hamb" type="button" onclick="toggleNav()" aria-label="Ocultar menu" aria-expanded="true">☰</button><span class="brand-title">📦 Solicitação de Embalagens <small class="version-badge">v23.8</small></span></div><div class="top-right"><div id="weatherBox" class="weather-box" title="Temperatura da sua localização"><div id="weatherIcon" class="weather-icon">🌡️</div><div><div class="weather-main"><span id="weatherTemp" class="weather-temp">--°C</span><button class="weather-refresh" onclick="loadWeather(true)" title="Atualizar temperatura" aria-label="Atualizar temperatura">↻</button></div><span id="weatherCity" class="weather-city">Localizando sua cidade...</span></div></div><div class="clock"><div id="hora" class="time">--:--:--</div><div id="data" class="date">--</div></div></div></header>
@@ -3662,13 +3681,28 @@ function renderTeamTaskHistory(){
  let box=$('teamTaskHistory');if(!box)return;let date=$('teamTaskHistoryDate')?.value||'',shift=$('teamTaskHistoryShift')?.value||'',rows=teamTaskRecords.filter(r=>(!date||r.date===date)&&(!shift||r.shift===shift));
  box.innerHTML=rows.length?`<div class="tablewrap team-task-tablewrap"><table class="table"><thead><tr><th>Data</th><th>Turno</th><th>Apontados</th><th>Troca lote</th><th>Gaiola</th><th>Transferência</th><th>Urgente</th><th>Organização</th><th>Sal</th><th>Registrado por</th><th>Ações</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${formatDateOnly(r.date)}</b></td><td>${r.shift}º</td><td>${teamTaskCount(r,'pointedItems')}</td><td>${teamTaskCount(r,'lotChanges')}</td><td>${teamTaskCount(r,'cageReplenishments')}</td><td>${teamTaskCount(r,'transferSeparated')}</td><td>${teamTaskCount(r,'urgentBarn')}</td><td>${(r.trashOk==='sim'||r.trashOk===true)?'🗑️ SIM':'🗑️ NÃO'} ${(r.stampOrganized==='sim'||r.stampOrganized===true)?'🧹 SIM':'🧹 NÃO'}</td><td>${(r.saltDone==='sim'||r.saltDone===true)?`SIM • ${r.saltPallets} pal.`:'NÃO'}</td><td>${escHtml(r.updatedBy||r.createdBy||'-')}</td><td>${teamTaskEditable(r)?`<div class="team-table-actions"><button class="btn" onclick="editTeamTask('${r.id}')">EDITAR</button><button class="btn" onclick="deleteTeamTask('${r.id}')">EXCLUIR</button></div>`:`<span class="team-task-history-locked">🔒 Bloqueado após 3 dias</span>`}</td></tr>`).join('')}</tbody></table></div>`:'<div class="hr-empty">Nenhum apontamento encontrado.</div>'
 }
+function drawTeamTaskBars(id,labels,values,colors){
+ const canvas=$(id);if(!canvas)return;const width=canvas.getBoundingClientRect().width;if(width<1)return;
+ const height=280,dpr=window.devicePixelRatio||1;canvas.width=Math.round(width*dpr);canvas.height=height*dpr;
+ const ctx=canvas.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,width,height);
+ const left=Math.min(145,width*.43),right=46,space=Math.max(20,width-left-right),max=Math.max(1,...values.map(Number));
+ ctx.font='12px Arial';ctx.textBaseline='middle';
+ if(!values.some(v=>Number(v)>0)){ctx.textAlign='center';ctx.fillStyle='#708490';ctx.fillText('Nenhuma atividade registrada.',width/2,height/2);return;}
+ labels.forEach((label,i)=>{const y=32+i*(216/labels.length),value=Number(values[i])||0;
+ ctx.textAlign='right';ctx.fillStyle='#344f65';ctx.fillText(label,left-10,y+12);
+ ctx.fillStyle='#edf3f7';ctx.fillRect(left,y,space,24);ctx.fillStyle=colors[i%colors.length];ctx.fillRect(left,y,space*value/max,24);
+ ctx.textAlign='left';ctx.fillStyle='#174f80';ctx.font='bold 12px Arial';ctx.fillText(value.toLocaleString('pt-BR'),left+space+8,y+12);ctx.font='12px Arial';});
+}
+let teamChartResizeTimer;
+window.addEventListener('resize',()=>{clearTimeout(teamChartResizeTimer);teamChartResizeTimer=setTimeout(()=>{if($('apontamentos')?.classList.contains('active')&&$('team-task-pane-dashboard')?.classList.contains('active'))renderTeamTaskDashboard();},160)});
+
 function renderTeamTaskDashboard(){
  let k=$('teamTaskKpis');if(!k||!teamTaskDashboard)return;let t=teamTaskDashboard.totals||{};
  k.innerHTML=[['Registros',t.reports||0],['Itens apontados',t.pointedItems||0],['Trocas de lote',t.lotChanges||0],['Reposições gaiola',t.cageReplenishments||0],['Transferências',t.transferSeparated||0],['Urgentes barracão',t.urgentBarn||0],['Paletes de sal',t.saltPallets||0],['Turnos atrasados',t.overdue||0]].map(x=>`<div class="team-task-kpi"><small>${x[0]}</small><b>${x[1]}</b></div>`).join('');
  let vals=[t.pointedItems||0,t.lotChanges||0,t.cageReplenishments||0,t.transferSeparated||0,t.urgentBarn||0];
- drawBar('teamTaskCategoryChart',['Itens apontados','Troca lote','Gaiola','Transferência','Urgente'],vals,{});
+ drawTeamTaskBars('teamTaskCategoryChart',['Itens apontados','Trocas de lote','Reposições gaiola','Transferências','Urgentes barracão'],vals,['#2878b5','#e29b27','#3b9b69','#8758b5','#d65353']);
  let s=teamTaskDashboard.byShift||{},s1=s['1']||{},s2=s['2']||{};
- drawBar('teamTaskShiftChart',['1º turno','2º turno'],[s1.activities||0,s2.activities||0],{});
+ drawTeamTaskBars('teamTaskShiftChart',['1º turno','2º turno'],[s1.activities||0,s2.activities||0],['#2878b5','#3b9b69']);
  let summary=$('teamTaskShiftSummary');if(summary)summary.innerHTML=`<div class="team-shift-summary"><div><b>1º Turno</b><span>${s1.reports||0} registro(s)</span><strong>${s1.activities||0} atividades</strong><small>${s1.saltPallets||0} paletes de sal</small></div><div><b>2º Turno</b><span>${s2.reports||0} registro(s)</span><strong>${s2.activities||0} atividades</strong><small>${s2.saltPallets||0} paletes de sal</small></div></div>`;
  if(!$('teamTaskDashFrom')?.value||!$('teamTaskDashTo')?.value)resetTeamTaskDailyRange(false);
  renderTeamTaskDailyChart();
@@ -3692,21 +3726,22 @@ function renderTeamTaskDailyChart(){
   {key:'urgentBarn',label:'Urgentes barracão',color:'#d65353'}
  ];
  let dayMap={};
- (teamTaskRecords||[]).forEach(r=>{let d=String(r.date||'').slice(0,10);if(!d||d<from||d>to)return;if(!dayMap[d])dayMap[d]={};categories.forEach(c=>dayMap[d][c.key]=0);categories.forEach(c=>dayMap[d][c.key]+=(r[c.key]||[]).length);});
+ (teamTaskRecords||[]).forEach(r=>{let d=String(r.date||'').slice(0,10);if(!d||d<from||d>to)return;if(!dayMap[d])dayMap[d]=Object.fromEntries(categories.map(c=>[c.key,0]));categories.forEach(c=>dayMap[d][c.key]+=(r[c.key]||[]).length);});
  let start=new Date(from+'T12:00:00'),end=new Date(to+'T12:00:00'),days=[];
  for(let d=new Date(start);d<=end&&days.length<370;d.setDate(d.getDate()+1)){let key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;days.push({key,values:dayMap[key]||Object.fromEntries(categories.map(c=>[c.key,0]))});}
  const legend=$('teamTaskDailyLegend');if(legend)legend.innerHTML=categories.map(c=>`<span><i style="background:${c.color}"></i>${c.label}</span>`).join('');
- const rect=canvas.getBoundingClientRect(),cssW=Math.max(320,rect.width||720),cssH=340,dpr=window.devicePixelRatio||1;
+ const rect=canvas.getBoundingClientRect(),cssW=Math.max(200,rect.width||720),cssH=rect.width<600?280:340,dpr=window.devicePixelRatio||1;
  canvas.width=Math.round(cssW*dpr);canvas.height=Math.round(cssH*dpr);canvas.style.height=cssH+'px';
  const ctx=canvas.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,cssW,cssH);
  if(!days.length){ctx.fillStyle='#667';ctx.font='14px sans-serif';ctx.fillText('Sem dados para o período selecionado.',20,40);return;}
+ if(!days.some(d=>categories.some(c=>d.values[c.key]>0))){ctx.fillStyle='#708490';ctx.font='14px Arial';ctx.textAlign='center';ctx.fillText('Nenhuma atividade registrada no período.',cssW/2,cssH/2);return;}
  const left=46,right=16,top=18,bottom=44,w=cssW-left-right,h=cssH-top-bottom;
- let max=Math.max(1,...days.flatMap(d=>categories.map(c=>d.values[c.key]||0)));max=Math.ceil(max*1.15);
+ let max=Math.max(1,...days.flatMap(d=>categories.map(c=>d.values[c.key]||0)));max=Math.max(4,Math.ceil(max*1.15/4)*4);
  ctx.font='11px sans-serif';ctx.textAlign='right';ctx.textBaseline='middle';ctx.strokeStyle='#e6edf1';ctx.fillStyle='#71818c';
  for(let i=0;i<=4;i++){let v=max*i/4,y=top+h-(h*i/4);ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(left+w,y);ctx.stroke();ctx.fillText(String(Math.round(v)),left-8,y);}
  const xAt=i=>left+(days.length===1?w/2:(i/(days.length-1))*w),yAt=v=>top+h-(v/max)*h;
  categories.forEach(c=>{ctx.beginPath();ctx.strokeStyle=c.color;ctx.lineWidth=2.4;let started=false;days.forEach((d,i)=>{let v=d.values[c.key]||0,x=xAt(i),y=yAt(v);if(!started){ctx.moveTo(x,y);started=true}else ctx.lineTo(x,y);});ctx.stroke();days.forEach((d,i)=>{let v=d.values[c.key]||0;if(v<=0)return;ctx.beginPath();ctx.fillStyle=c.color;ctx.arc(xAt(i),yAt(v),3,0,Math.PI*2);ctx.fill();});});
- ctx.fillStyle='#71818c';ctx.textAlign='center';ctx.textBaseline='top';let step=Math.max(1,Math.ceil(days.length/14));
+ ctx.fillStyle='#71818c';ctx.textAlign='center';ctx.textBaseline='top';let step=Math.max(1,Math.ceil(days.length/Math.max(2,Math.floor(w/60))));
  days.forEach((d,i)=>{if(i%step!==0&&i!==days.length-1)return;let label=d.key.slice(8,10)+'/'+d.key.slice(5,7);ctx.fillText(label,xAt(i),top+h+10);});
 }
 function hideTeamTaskPersistentAlert(){let b=$('teamTaskPersistentAlert');if(b){b.classList.add('hidden');b.innerHTML=''}if(teamAlertTimer){clearTimeout(teamAlertTimer);teamAlertTimer=null}}
